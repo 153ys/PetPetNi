@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useUIStore } from '@/stores/ui'
@@ -23,6 +23,7 @@ const router = useRouter()
 const route = useRoute()
 const uiStore = useUIStore()
 const authStore = useAuthStore()
+const isDemoLoginLoading = ref(false)
 
 // 使用 storeToRefs 保持 user/token 的響應性
 const { token } = storeToRefs(authStore)
@@ -57,6 +58,32 @@ function handleLogoClick() {
   uiStore.closeMenu()
   router.push({ name: 'home' })
 }
+
+const handleDemoLogin = async () => {
+  if (isDemoLoginLoading.value) return
+
+  const email = import.meta.env.VITE_GUEST_EMAIL?.trim()
+  const password = import.meta.env.VITE_GUEST_PASSWORD
+
+  if (!email || !password) {
+    console.error('缺少 demo 帳號環境變數')
+    alert('一鍵登入失敗：缺少 demo 帳號設定')
+    return
+  }
+
+  try {
+    isDemoLoginLoading.value = true
+    uiStore.closeMenu()
+
+    await authStore.login(email, password)
+    router.push('/')
+  } catch (error) {
+    console.error('一鍵登入失敗：', error)
+    alert(error.response?.data?.error || '一鍵登入失敗，請稍後再試')
+  } finally {
+    isDemoLoginLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -87,13 +114,22 @@ function handleLogoClick() {
           >
             註冊
           </router-link>
-          <router-link
+          <!-- <router-link
             v-show="!uiStore.isMenuOpen"
             :to="{ name: 'login' }"
             class="bg-brand-primary hover:bg-brand-primary/80 shadow-card flex items-center justify-center rounded-full px-3 py-2 text-sm font-bold tracking-wider text-white transition-colors duration-300 md:px-5 md:py-3"
           >
             登入
-          </router-link>
+          </router-link> -->
+          <button
+            v-show="!uiStore.isMenuOpen"
+            type="button"
+            :disabled="isDemoLoginLoading"
+            class="bg-brand-primary hover:bg-brand-primary/80 shadow-card flex cursor-pointer items-center justify-center rounded-full px-3 py-2 text-sm font-bold tracking-wider text-white transition-colors duration-300 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 md:px-5 md:py-3"
+            @click="handleDemoLogin"
+          >
+            {{ isDemoLoginLoading ? '登入中...' : '一鍵登入' }}
+          </button>
         </div>
         <MenuButton class="-right-5 md:right-0" />
       </div>
