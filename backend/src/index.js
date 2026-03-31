@@ -13,18 +13,18 @@ import eventRoutes from "./routes/event.js";
 import socialRoutes from "./routes/social.js";
 import followRoutes from "./routes/followRoutes.js";
 import matchRoutes from "./routes/match.js";
-import { chatService } from "./services/chatService.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
+if (process.env.NODE_ENV !== "production") {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  dotenv.config({ path: path.resolve(__dirname, "../.env") });
+} else {
+  dotenv.config(); // 生產環境直接讀取
+}
+
 const app = express();
 
-// 配置
-const PORT = process.env.PORT || 3000;
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
-
 const corsOptions = {
-  origin: [FRONTEND_URL, "https://japanpetpetni.zeabur.app", "https://petpetni.site"],
+  origin: true,
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "x-user-id"],
@@ -33,8 +33,6 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(express.json());
-
-// 2. 註冊路由
 app.use("/api/chat", chatRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/auth", authRoutes);
@@ -43,13 +41,19 @@ app.use("/api/events", eventRoutes);
 app.use("/api/social", socialRoutes);
 app.use("/api/follow", followRoutes);
 app.use("/api/match", matchRoutes);
-
-// Health Check
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", message: "PetPetNi API Server is ALIVE!" });
+  res.json({
+    status: "ok",
+    message: "PetPetNi API Server is ALIVE!",
+    env: process.env.NODE_ENV,
+  });
 });
 
-// 3. 啟動伺服器
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+if (process.env.NODE_ENV !== "production") {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 本地測試運行中：http://localhost:${PORT}`);
+  });
+}
+
+export default app;
