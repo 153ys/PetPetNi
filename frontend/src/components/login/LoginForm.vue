@@ -33,6 +33,17 @@ const emailError = ref('')
 const passwordError = ref('')
 const loginFailed = ref(false)
 
+const demoLogin = async () => {
+  email.value = import.meta.env.VITE_GUEST_EMAIL
+  password.value = import.meta.env.VITE_GUEST_PASSWORD
+
+  try {
+    await handleLogin()
+  } catch (error) {
+    console.error('一鍵登入失敗：', error)
+  }
+}
+
 // 監聽輸入變化，清除錯誤訊息
 watch(email, () => {
   emailError.value = ''
@@ -249,12 +260,24 @@ const handleEmailBlur = () => {
         </label>
       </div>
 
-      <button
-        type="submit"
-        class="bg-brand-primary w-full cursor-pointer rounded-2xl py-4 text-lg font-bold text-white shadow-lg transition-all hover:opacity-90 active:scale-95"
-      >
-        登入
-      </button>
+      <div w-full class="flex gap-4">
+        <button
+          type="submit"
+          class="bg-brand-primary flex-1 cursor-pointer rounded-2xl py-4 text-lg font-bold text-white shadow-lg transition-all hover:opacity-90 active:scale-95"
+        >
+          登入
+        </button>
+        <button
+          type="button"
+          class="relative flex-1 cursor-pointer rounded-2xl bg-gray-200 py-4 text-lg font-bold text-gray-700 shadow-lg transition-all hover:bg-gray-300"
+          @click="demoLogin"
+        >
+          訪客一鍵登入
+          <p class="text-brand-accent absolute -top-6 right-2 text-xs">
+            * 供面試官快速預覽功能使用
+          </p>
+        </button>
+      </div>
     </form>
 
     <p class="mt-8 text-center text-sm text-gray-500">
