@@ -19,8 +19,8 @@ const authStore = useAuthStore()
 const router = useRouter()
 
 // Auth state
-const { token } = storeToRefs(authStore)
-const isLoggedIn = computed(() => !!token.value)
+const { token, user, isReady } = storeToRefs(authStore)
+const isLoggedIn = computed(() => isReady.value && !!token.value && !!user.value)
 
 // ✅ Logout handler - 使用 finally 消除重複代碼
 const handleLogout = async () => {

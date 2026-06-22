@@ -24,10 +24,8 @@ const route = useRoute()
 const uiStore = useUIStore()
 const authStore = useAuthStore()
 const isDemoLoginLoading = ref(false)
-
-// 使用 storeToRefs 保持 user/token 的響應性
-const { token } = storeToRefs(authStore)
-const isLoggedIn = computed(() => !!token.value)
+const { token, user, isReady } = storeToRefs(authStore)
+const isLoggedIn = computed(() => isReady.value && !!token.value && !!user.value)
 
 // 判斷是否為首頁（只有首頁使用 MainFrame 藍色框架）
 const isHomePage = computed(() => route.name === 'home')
@@ -39,7 +37,6 @@ const headerClasses = computed(() => [
   props.transparent || uiStore.isMenuOpen
     ? 'bg-transparent border-none shadow-none'
     : 'bg-white border-b border-border-default/50 shadow-shadow-card',
-  // TODO: Magic Number: top-[36px] 為跑馬燈高度，應抽成 CSS 變數 --marquee-h
   isHomePage.value ? 'md:top-9 top-4' : 'top-0',
   // Menu 開啟時讓 Header 背景不擋住點擊，但 MenuButton 需設為 auto
   uiStore.isMenuOpen ? 'pointer-events-none' : ''
@@ -47,7 +44,6 @@ const headerClasses = computed(() => [
 
 const containerClasses = computed(() => [
   'h-(--header-h) w-full mx-auto flex items-center justify-between relative',
-  // TODO: Magic Number: px-[30px] 剛好等於首頁跑馬燈寬度，導致重疊，故增加為 px-12 (48px)
   isHomePage.value
     ? '-left-2 md:left-0 w-full  px-12 md:px-[50px]'
     : 'max-w-300 px-6 max-[800px]:px-4'
@@ -104,8 +100,12 @@ const handleDemoLogin = async () => {
         </span>
       </button>
 
+      <div v-if="!isReady" class="pointer-events-auto flex items-center gap-3">
+        <MenuButton class="-right-5 md:right-0" />
+      </div>
+
       <!-- 登入前：只顯示登入按鈕 + Menu -->
-      <div v-if="!isLoggedIn" class="pointer-events-auto flex items-center gap-3">
+      <div v-else-if="!isLoggedIn" class="pointer-events-auto flex items-center gap-3">
         <div class="flex items-center gap-3 md:absolute md:left-1/2 md:-translate-x-1/2">
           <router-link
             v-show="!uiStore.isMenuOpen"
