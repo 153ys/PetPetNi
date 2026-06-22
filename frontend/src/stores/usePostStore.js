@@ -82,6 +82,11 @@ export const usePostStore = defineStore('post', () => {
       showError(msg)
       throw new Error(msg)
     }
+
+    const lockKey = 'create_post'
+    if (activeRequests.has(lockKey)) return null
+    activeRequests.add(lockKey)
+
     try {
       const res = await socialApi.createPost({
         content,
@@ -107,6 +112,8 @@ export const usePostStore = defineStore('post', () => {
     } catch (err) {
       showError(getErrorMessage(err, '貼文發布失敗，請稍後再試'))
       throw err
+    } finally {
+      activeRequests.delete(lockKey)
     }
   }
 
@@ -129,10 +136,16 @@ export const usePostStore = defineStore('post', () => {
     }
   }
 
+  // 用來避免重複點擊的請求鎖
+  const activeRequests = new Set()
+
   // 按讚
   const likePost = async (id) => {
     const post = posts.value.find((p) => p.id === id)
     if (!post) return
+    const lockKey = `like_${id}`
+    if (activeRequests.has(lockKey)) return
+    activeRequests.add(lockKey)
 
     const isLiked = !post.isLiked
     post.isLiked = isLiked
@@ -148,6 +161,9 @@ export const usePostStore = defineStore('post', () => {
       post.isLiked = !isLiked
       post.likeCount += isLiked ? -1 : 1
       showError(getErrorMessage(err, '操作失敗，請稍後再試'))
+      throw err // 拋出錯誤讓 Component 知道失敗了
+    } finally {
+      activeRequests.delete(lockKey)
     }
   }
 
@@ -159,6 +175,10 @@ export const usePostStore = defineStore('post', () => {
       console.warn('[bookmarkPost] Post not found in store:', id)
       return
     }
+
+    const lockKey = `bookmark_${id}`
+    if (activeRequests.has(lockKey)) return
+    activeRequests.add(lockKey)
 
     const originalState = post.isBookmarked
     // 強制更新屬性，確保 Vue 偵測到變化
@@ -180,6 +200,9 @@ export const usePostStore = defineStore('post', () => {
     } catch (err) {
       post.isBookmarked = originalState
       showError(getErrorMessage(err, '操作失敗，請稍後再試'))
+      throw err // 拋出錯誤讓 Component 知道失敗了
+    } finally {
+      activeRequests.delete(lockKey)
     }
   }
 

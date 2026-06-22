@@ -41,30 +41,43 @@ const toggleLike = async (postId) => {
   try {
     const post = postStore.posts.find((p) => p.id === postId)
     if (!post) return
+    
+    // 紀錄點擊前的狀態
+    const wasLiked = post.isLiked
     await postStore.likePost(postId)
-    if (post.isLiked) {
-      success('已按讚')
-    } else {
-      success('已取消按讚')
+    
+    // 如果狀態真的有跟著改變，再顯示 toast
+    if (post.isLiked !== wasLiked) {
+      if (post.isLiked) {
+        success('已按讚')
+      } else {
+        success('已取消按讚')
+      }
     }
   } catch (err) {
-    error('操作失敗')
+    // 錯誤時的 toast 已經在 store 中由 showError 處理了
+    // 這裡只需要 catch 住防止影響其他執行
   }
 }
 
 const toggleBookmark = async (postId) => {
   try {
     const post = postStore.posts.find((p) => p.id === postId)
+    if (!post) return
+    
+    const wasBookmarked = post.isBookmarked
     await postStore.bookmarkPost(postId)
 
-    if (post && post.isBookmarked) {
-      success('已收藏貼文')
-    } else {
-      success('已取消收藏')
+    if (post.isBookmarked !== wasBookmarked) {
+      if (post.isBookmarked) {
+        success('已收藏貼文')
+      } else {
+        success('已取消收藏')
+      }
     }
   } catch (err) {
     console.error(err)
-    error('操作失敗')
+    // 錯誤時的 toast 已在 store 處理
   }
 }
 

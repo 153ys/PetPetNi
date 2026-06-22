@@ -9,8 +9,10 @@ const { success } = useToast()
 
 const handleSubmit = async (payload) => {
   try {
-    await postStore.createPost(payload.content, payload.images, payload.audience)
-    success('貼文已發布')
+    const newPost = await postStore.createPost(payload.content, payload.images, payload.audience)
+    if (newPost) {
+      success('貼文已發布')
+    }
   } catch {
     // 錯誤已由 API interceptor 與 store 統一處理
   }
