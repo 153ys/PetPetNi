@@ -366,10 +366,9 @@ export const usePostStore = defineStore('post', () => {
   }
 
   const updateCommentCount = (id, delta) => {
-    const post = posts.value.find((p) => p.id === id)
-    if (post) {
-      post.commentCount = (post.commentCount || 0) + delta
-    }
+    getPostRefsById(id).forEach((post) => {
+      post.commentCount = Math.max(0, (post.commentCount || 0) + delta)
+    })
   }
 
   return {

@@ -75,9 +75,19 @@ const MAX_COMMENT_LENGTH = 50
 
 // 新增留言
 const newComment = ref('')
+const isSubmittingComment = ref(false)
+const deletingCommentIds = ref(new Set())
+
+const isCommentInvalid = computed(
+  () => !newComment.value.trim() || newComment.value.length > MAX_COMMENT_LENGTH
+)
+
+const isDeletingComment = (id) => deletingCommentIds.value.has(id)
 
 const submitComment = async () => {
-  if (!newComment.value.trim() || newComment.value.length > MAX_COMMENT_LENGTH) return
+  if (isSubmittingComment.value || isCommentInvalid.value) return
+
+  isSubmittingComment.value = true
   try {
     await commentStore.addComment(props.post.id, newComment.value)
     emit('add-comment')
@@ -86,10 +96,15 @@ const submitComment = async () => {
   } catch (err) {
     console.error(err)
     error('留言失敗')
+  } finally {
+    isSubmittingComment.value = false
   }
 }
 
 const handleDelete = async (id) => {
+  if (isDeletingComment(id)) return
+
+  deletingCommentIds.value = new Set(deletingCommentIds.value).add(id)
   try {
     await commentStore.deleteComment(props.post.id, id)
     emit('delete-comment')
@@ -97,6 +112,10 @@ const handleDelete = async (id) => {
   } catch (err) {
     console.error(err)
     error('刪除失敗')
+  } finally {
+    const nextDeletingIds = new Set(deletingCommentIds.value)
+    nextDeletingIds.delete(id)
+    deletingCommentIds.value = nextDeletingIds
   }
 }
 
@@ -180,6 +199,7 @@ const onSwipeEnd = () => {
                     <div v-if="c.authorId === authStore.user?.id" class="flex gap-6 pr-2">
                       <button
                         class="text-zinc-400 hover:text-zinc-500"
+                        :disabled="isDeletingComment(c.id)"
                         @click.stop="handleDelete(c.id)"
                       >
                         <i class="fa-solid fa-trash text-sm"></i>
@@ -204,11 +224,12 @@ const onSwipeEnd = () => {
                 type="text"
                 placeholder="新增留言..."
                 class="flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400"
+                :disabled="isSubmittingComment"
                 @keyup.enter="submitComment"
               />
               <button
                 class="text-brand-primary disabled:text-zinc-400"
-                :disabled="!newComment.trim() || newComment.length > MAX_COMMENT_LENGTH"
+                :disabled="isSubmittingComment || isCommentInvalid"
                 @click="submitComment"
               >
                 <i class="fa-solid fa-arrow-up"></i>
@@ -284,6 +305,7 @@ const onSwipeEnd = () => {
                 <div v-if="c.authorId === authStore.user?.id" class="flex gap-2">
                   <button
                     class="cursor-pointer text-zinc-300 transition-colors hover:text-red-500"
+                    :disabled="isDeletingComment(c.id)"
                     @click.stop="handleDelete(c.id)"
                   >
                     <i class="fa-solid fa-trash text-md"></i>
@@ -308,14 +330,15 @@ const onSwipeEnd = () => {
             type="text"
             placeholder="寫下你的留言..."
             class="flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400"
+            :disabled="isSubmittingComment"
             @keyup.enter="submitComment"
           />
           <button
             class="grid h-7 w-7 place-items-center rounded-full text-white transition-colors disabled:cursor-not-allowed disabled:bg-zinc-200"
-            :disabled="!newComment.trim() || newComment.length > MAX_COMMENT_LENGTH"
+            :disabled="isSubmittingComment || isCommentInvalid"
             :class="{
               'bg-brand-primary cursor-pointer':
-                newComment.trim() && newComment.length <= MAX_COMMENT_LENGTH
+                !isSubmittingComment && !isCommentInvalid
             }"
             @click="submitComment"
           >
