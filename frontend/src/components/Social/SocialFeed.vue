@@ -39,21 +39,7 @@ const openComments = (postId) => {
 
 const toggleLike = async (postId) => {
   try {
-    const post = postStore.posts.find((p) => p.id === postId)
-    if (!post) return
-    
-    // 紀錄點擊前的狀態
-    const wasLiked = post.isLiked
-    await postStore.likePost(postId)
-    
-    // 如果狀態真的有跟著改變，再顯示 toast
-    if (post.isLiked !== wasLiked) {
-      if (post.isLiked) {
-        success('已按讚')
-      } else {
-        success('已取消按讚')
-      }
-    }
+    postStore.likePost(postId)
   } catch (err) {
     // 錯誤時的 toast 已經在 store 中由 showError 處理了
     // 這裡只需要 catch 住防止影響其他執行

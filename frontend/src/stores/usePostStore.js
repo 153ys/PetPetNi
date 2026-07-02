@@ -14,7 +14,7 @@ export const usePostStore = defineStore('post', () => {
   })
 
   const authStore = useAuthStore()
-  const { error: showError } = useToast()
+  const { error: showError, success: showSuccess } = useToast()
 
   const getErrorMessage = (err, fallback) =>
     err?.response?.data?.error || err?.response?.data?.message || err?.message || fallback
@@ -47,6 +47,7 @@ export const usePostStore = defineStore('post', () => {
       } else {
         posts.value = data
       }
+      applyPendingLikeStates()
 
       pagination.value = {
         page,
@@ -70,6 +71,7 @@ export const usePostStore = defineStore('post', () => {
       const data = Array.isArray(res.data) ? res.data : res.data?.data || []
       console.log('[fetchBookmarkedPosts] Processed data:', data)
       bookmarkedPosts.value = data
+      applyPendingLikeStates()
     } catch (err) {
       console.error('[fetchBookmarkedPosts] Error:', err)
       showError(getErrorMessage(err, '收藏貼文載入失敗，請稍後再試'))
@@ -138,33 +140,172 @@ export const usePostStore = defineStore('post', () => {
 
   // 用來避免重複點擊的請求鎖
   const activeRequests = new Set()
+  const LIKE_SYNC_DELAY = 500
+  const LIKE_SYNC_STORAGE_KEY = 'pendingPostLikes'
+  const likeSyncStates = new Map()
 
-  // 按讚
-  const likePost = async (id) => {
-    const post = posts.value.find((p) => p.id === id)
-    if (!post) return
-    const lockKey = `like_${id}`
-    if (activeRequests.has(lockKey)) return
-    activeRequests.add(lockKey)
-
-    const isLiked = !post.isLiked
-    post.isLiked = isLiked
-    post.likeCount += isLiked ? 1 : -1
+  const readPendingLikeStates = () => {
+    if (typeof window === 'undefined') return {}
 
     try {
-      if (isLiked) {
+      return JSON.parse(localStorage.getItem(LIKE_SYNC_STORAGE_KEY) || '{}')
+    } catch {
+      return {}
+    }
+  }
+
+  const writePendingLikeStates = (pendingStates) => {
+    if (typeof window === 'undefined') return
+
+    const entries = Object.entries(pendingStates)
+    if (entries.length === 0) {
+      localStorage.removeItem(LIKE_SYNC_STORAGE_KEY)
+      return
+    }
+
+    localStorage.setItem(LIKE_SYNC_STORAGE_KEY, JSON.stringify(Object.fromEntries(entries)))
+  }
+
+  const persistPendingLikeState = (id, isLiked) => {
+    const pendingStates = readPendingLikeStates()
+    pendingStates[String(id)] = isLiked
+    writePendingLikeStates(pendingStates)
+  }
+
+  const clearPendingLikeState = (id) => {
+    const pendingStates = readPendingLikeStates()
+    delete pendingStates[String(id)]
+    writePendingLikeStates(pendingStates)
+  }
+
+  const getPostRefsById = (id) => {
+    const refs = [...posts.value, ...bookmarkedPosts.value].filter((p) => p?.id == id)
+    return refs.filter((post, index) => refs.indexOf(post) === index)
+  }
+
+  const setPostLikeState = (id, isLiked, likeCount) => {
+    getPostRefsById(id).forEach((post) => {
+      post.isLiked = isLiked
+      post.likeCount = Math.max(0, likeCount)
+    })
+  }
+
+  const applyOptimisticLikeState = (id, nextIsLiked) => {
+    getPostRefsById(id).forEach((post) => {
+      const wasLiked = !!post.isLiked
+      post.isLiked = nextIsLiked
+
+      if (wasLiked !== nextIsLiked) {
+        post.likeCount = Math.max(0, (post.likeCount || 0) + (nextIsLiked ? 1 : -1))
+      }
+    })
+  }
+
+  const getLikeSyncState = (id, post) => {
+    const key = String(id)
+    const existingState = likeSyncStates.get(key)
+    if (existingState) return existingState
+
+    const state = {
+      confirmedIsLiked: !!post.isLiked,
+      confirmedLikeCount: post.likeCount || 0,
+      desiredIsLiked: !!post.isLiked,
+      timer: null,
+      isSyncing: false,
+      localVersion: 0
+    }
+
+    likeSyncStates.set(key, state)
+    return state
+  }
+
+  const syncLikeState = async (id, state) => {
+    if (state.isSyncing) return
+
+    const desiredIsLiked = state.desiredIsLiked
+    const syncVersion = state.localVersion
+
+    if (desiredIsLiked === state.confirmedIsLiked) {
+      clearPendingLikeState(id)
+      return
+    }
+
+    state.isSyncing = true
+
+    try {
+      if (desiredIsLiked) {
         await socialApi.likePost(id)
       } else {
         await socialApi.unlikePost(id)
       }
+
+      const countDelta = desiredIsLiked ? 1 : -1
+      state.confirmedIsLiked = desiredIsLiked
+      state.confirmedLikeCount = Math.max(0, state.confirmedLikeCount + countDelta)
+      clearPendingLikeState(id)
+      showSuccess(desiredIsLiked ? '已按讚' : '已取消按讚')
     } catch (err) {
-      post.isLiked = !isLiked
-      post.likeCount += isLiked ? -1 : 1
+      if (state.localVersion === syncVersion) {
+        state.desiredIsLiked = state.confirmedIsLiked
+        setPostLikeState(id, state.confirmedIsLiked, state.confirmedLikeCount)
+        clearPendingLikeState(id)
+      }
       showError(getErrorMessage(err, '操作失敗，請稍後再試'))
-      throw err // 拋出錯誤讓 Component 知道失敗了
     } finally {
-      activeRequests.delete(lockKey)
+      state.isSyncing = false
+
+      if (state.desiredIsLiked !== state.confirmedIsLiked) {
+        scheduleLikeSync(id, state)
+      }
     }
+  }
+
+  function scheduleLikeSync(id, state) {
+    if (state.timer) clearTimeout(state.timer)
+
+    state.timer = setTimeout(() => {
+      state.timer = null
+      syncLikeState(id, state)
+    }, LIKE_SYNC_DELAY)
+  }
+
+  // 按讚
+  const likePost = (id) => {
+    const post = getPostRefsById(id)[0]
+    if (!post) return
+
+    const state = getLikeSyncState(id, post)
+    const nextIsLiked = !post.isLiked
+    state.desiredIsLiked = nextIsLiked
+    state.localVersion += 1
+
+    applyOptimisticLikeState(id, nextIsLiked)
+    if (nextIsLiked === state.confirmedIsLiked) {
+      clearPendingLikeState(id)
+    } else {
+      persistPendingLikeState(id, nextIsLiked)
+    }
+    scheduleLikeSync(id, state)
+  }
+
+  const applyPendingLikeStates = () => {
+    const pendingStates = readPendingLikeStates()
+
+    Object.entries(pendingStates).forEach(([id, desiredIsLiked]) => {
+      const post = getPostRefsById(id)[0]
+      if (!post) return
+
+      const state = getLikeSyncState(id, post)
+      state.desiredIsLiked = desiredIsLiked
+
+      if (desiredIsLiked === state.confirmedIsLiked) {
+        clearPendingLikeState(id)
+        return
+      }
+
+      applyOptimisticLikeState(id, desiredIsLiked)
+      scheduleLikeSync(id, state)
+    })
   }
 
   // 收藏

@@ -450,14 +450,7 @@ const showEventsTab = computed(() => {
 // 按讚
 const toggleLike = async (postId) => {
   try {
-    const post = postStore.posts.find((p) => p.id === postId)
-    if (!post) return
-    await postStore.likePost(postId)
-    if (post.isLiked) {
-      showSuccess('已按讚')
-    } else {
-      showSuccess('已取消按讚')
-    }
+    postStore.likePost(postId)
   } catch {
     showError('操作失敗')
   }
