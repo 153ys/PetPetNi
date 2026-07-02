@@ -33,6 +33,19 @@ const toProfile = () => {
 
 const commentStore = useCommentStore()
 const authStore = useAuthStore()
+const defaultAvatar = 'src/assets/avatar-cat.jpg'
+
+const getCommentAvatar = (comment) =>
+  comment?.authorAvatar ||
+  comment?.avatar ||
+  comment?.avatar_url ||
+  comment?.userAvatar ||
+  comment?.profile?.avatar_url ||
+  defaultAvatar
+
+const handleAvatarError = (event) => {
+  event.target.src = defaultAvatar
+}
 
 // 載入留言
 const isLoading = ref(true)
@@ -182,7 +195,14 @@ const onSwipeEnd = () => {
             class="mb-4 flex gap-2 rounded-lg p-1 transition-colors duration-300"
             :class="c.isHighlight ? 'bg-yellow-50/40 ring-1 ring-yellow-200' : 'bg-white ring-0'"
           >
-            <div class="h-8 w-8 shrink-0 rounded-full bg-zinc-200"></div>
+            <div class="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-zinc-200">
+              <img
+                :src="getCommentAvatar(c)"
+                :alt="`${c.author || '留言者'} 的頭貼`"
+                class="h-full w-full object-cover"
+                @error="handleAvatarError"
+              />
+            </div>
             <div class="min-w-0 flex-1">
               <div>
                 <div class="flex items-baseline justify-between pb-1">
@@ -288,7 +308,14 @@ const onSwipeEnd = () => {
         class="flex gap-3 rounded-lg px-3 py-3 pr-4 transition-colors duration-300"
         :class="c.isHighlight ? 'bg-yellow-50/40 ring-1 ring-yellow-200' : 'bg-white ring-0'"
       >
-        <div class="h-8 w-8 shrink-0 rounded-full bg-zinc-200"></div>
+        <div class="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-zinc-200">
+          <img
+            :src="getCommentAvatar(c)"
+            :alt="`${c.author || '留言者'} 的頭貼`"
+            class="h-full w-full object-cover"
+            @error="handleAvatarError"
+          />
+        </div>
         <div class="min-w-0 flex-1">
           <div>
             <div class="flex items-baseline justify-between pb-1">
@@ -337,8 +364,7 @@ const onSwipeEnd = () => {
             class="grid h-7 w-7 place-items-center rounded-full text-white transition-colors disabled:cursor-not-allowed disabled:bg-zinc-200"
             :disabled="isSubmittingComment || isCommentInvalid"
             :class="{
-              'bg-brand-primary cursor-pointer':
-                !isSubmittingComment && !isCommentInvalid
+              'bg-brand-primary cursor-pointer': !isSubmittingComment && !isCommentInvalid
             }"
             @click="submitComment"
           >
