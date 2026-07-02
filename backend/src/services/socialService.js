@@ -693,6 +693,7 @@ export const socialService = {
           user_id_int,
           profiles:user_id_int (
             user_id,
+            user_id_int,
             nick_name,
             avatar_url
           )
@@ -711,6 +712,7 @@ export const socialService = {
         content: c.content,
         author: c.profiles?.nick_name || 'Unknown',
         authorId: c.profiles?.user_id,
+        authorIdInt: c.profiles?.user_id_int || c.user_id_int,
         authorAvatar: c.profiles?.avatar_url,
         createdAt: c.created_at
       }))
@@ -744,6 +746,7 @@ export const socialService = {
           created_at,
           profiles:user_id_int (
             user_id,
+            user_id_int,
             nick_name,
             avatar_url
           )
@@ -775,6 +778,7 @@ export const socialService = {
         content: data.content,
         author: data.profiles?.nick_name || 'Unknown',
         authorId: userId,
+        authorIdInt: data.profiles?.user_id_int || userIdInt,
         authorAvatar: data.profiles?.avatar_url,
         createdAt: data.created_at
       }

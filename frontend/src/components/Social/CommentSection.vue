@@ -16,8 +16,14 @@ const props = defineProps({
 })
 
 const router = useRouter()
-const toProfile = () => {
-  const rawId = props.post.authorIdInt ?? props.post.userIdInt ?? props.post.user_id_int
+const toProfile = (comment) => {
+  const rawId =
+    comment?.authorIdInt ??
+    comment?.userIdInt ??
+    comment?.user_id_int ??
+    props.post.authorIdInt ??
+    props.post.userIdInt ??
+    props.post.user_id_int
   const userIdInt = Number(rawId)
   const hasUserIdInt = Number.isFinite(userIdInt) && userIdInt > 0
 
@@ -195,19 +201,23 @@ const onSwipeEnd = () => {
             class="mb-4 flex gap-2 rounded-lg p-1 transition-colors duration-300"
             :class="c.isHighlight ? 'bg-yellow-50/40 ring-1 ring-yellow-200' : 'bg-white ring-0'"
           >
-            <div class="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-zinc-200">
+            <button
+              class="h-8 w-8 shrink-0 cursor-pointer overflow-hidden rounded-full bg-zinc-200"
+              type="button"
+              @click="toProfile(c)"
+            >
               <img
                 :src="getCommentAvatar(c)"
                 :alt="`${c.author || '留言者'} 的頭貼`"
                 class="h-full w-full object-cover"
                 @error="handleAvatarError"
               />
-            </div>
+            </button>
             <div class="min-w-0 flex-1">
               <div>
                 <div class="flex items-baseline justify-between pb-1">
                   <div class="flex items-center justify-center">
-                    <button class="pr-2 text-sm font-bold text-blue-800" @click="toProfile">
+                    <button class="pr-2 text-sm font-bold text-blue-800" @click="toProfile(c)">
                       {{ c.author }}
                     </button>
                     <span class="text-xs text-zinc-300">
@@ -308,21 +318,28 @@ const onSwipeEnd = () => {
         class="flex gap-3 rounded-lg px-3 py-3 pr-4 transition-colors duration-300"
         :class="c.isHighlight ? 'bg-yellow-50/40 ring-1 ring-yellow-200' : 'bg-white ring-0'"
       >
-        <div class="h-8 w-8 shrink-0 overflow-hidden rounded-full bg-zinc-200">
+        <button
+          class="h-8 w-8 shrink-0 cursor-pointer overflow-hidden rounded-full bg-zinc-200"
+          type="button"
+          @click="toProfile(c)"
+        >
           <img
             :src="getCommentAvatar(c)"
             :alt="`${c.author || '留言者'} 的頭貼`"
             class="h-full w-full object-cover"
             @error="handleAvatarError"
           />
-        </div>
+        </button>
         <div class="min-w-0 flex-1">
           <div>
             <div class="flex items-baseline justify-between pb-1">
               <div class="flex items-center justify-center gap-5 md:gap-2">
-                <span class="text-sm font-bold text-blue-800" @click="toProfile">{{
-                  c.author
-                }}</span>
+                <button
+                  class="cursor-pointer text-sm font-bold text-blue-800"
+                  @click="toProfile(c)"
+                >
+                  {{ c.author }}
+                </button>
                 <span class="text-xs text-gray-400">
                   {{ formatCommentTime(c.createdAt) }}
                   <span v-if="c.isEdited" class="ml-1 text-gray-500">(已編輯)</span>
